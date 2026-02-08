@@ -7,7 +7,7 @@
  */
 
 import { StateCreator } from "zustand";
-import { TargetCell, PricePoint, ActiveRound } from "@/types/game";
+import { TargetCell, PricePoint, ActiveRound, TimeframeSeconds } from "@/types/game";
 import { AssetType } from "@/lib/utils/priceFeed";
 
 // Active bet type for instant-resolution system
@@ -32,8 +32,19 @@ export interface GameState {
   isSettling: boolean;
   error: string | null;
 
+  // Blitz Round State (x402 premium feature)
+  isBlitzActive: boolean;
+  blitzEndTime: number | null;
+  nextBlitzTime: number;
+  hasBlitzAccess: boolean;
+  blitzMultiplier: number;
+
+  // Timeframe (cell duration): 5s, 15s, 30s, 1m, 3m, 5m
+  timeframeSeconds: TimeframeSeconds;
+
   // Actions
   setSelectedAsset: (asset: AssetType) => void;
+  setTimeframeSeconds: (seconds: TimeframeSeconds) => void;
   placeBet: (amount: string, targetId: string) => Promise<void>;
   placeBetFromHouseBalance: (amount: string, targetId: string, userAddress: string, cellId?: string) => Promise<{ betId: string; remainingBalance: number; bet: ActiveBet } | void>;
   addActiveBet: (bet: ActiveBet) => void;
@@ -43,6 +54,11 @@ export interface GameState {
   setActiveRound: (round: ActiveRound | null) => void;
   loadTargetCells: () => Promise<void>;
   clearError: () => void;
+
+  // Blitz Round Actions
+  enableBlitzAccess: () => void;
+  revokeBlitzAccess: () => void;
+  updateBlitzTimer: () => void;
 }
 
 // Maximum price history points (5 minutes at 1 second intervals)
@@ -76,22 +92,52 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
   isSettling: false,
   error: null,
 
+  isBlitzActive: false,
+  blitzEndTime: null,
+  nextBlitzTime: (() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('overflow_blitz_next');
+      if (stored) {
+        const t = parseInt(stored, 10);
+        if (t > Date.now()) return t;
+      }
+      const next = Date.now() + 2 * 60 * 1000;
+      localStorage.setItem('overflow_blitz_next', next.toString());
+      return next;
+    }
+    return Date.now() + 2 * 60 * 1000;
+  })(),
+  hasBlitzAccess: false,
+  blitzMultiplier: 2.0,
+
+  timeframeSeconds: 5,
+
   /**
    * Set selected asset for price tracking
    */
   setSelectedAsset: (asset: AssetType) => {
     const { selectedAsset: currentAsset } = get();
-    
-    // Only reset if actually changing asset
     if (currentAsset !== asset) {
-      set({ 
+      set({
         selectedAsset: asset,
-        priceHistory: [], // Clear history when switching assets
+        priceHistory: [],
         currentPrice: 0,
-        activeBets: [], // Clear active bets when switching
-        activeRound: null
+        activeBets: [],
+        activeRound: null,
       });
     }
+  },
+
+  /**
+   * Set timeframe for grid cells (5s, 15s, 30s, 1m, 3m, 5m). Clears active bets.
+   */
+  setTimeframeSeconds: (seconds: TimeframeSeconds) => {
+    const current = get().timeframeSeconds;
+    if (current === seconds) return;
+    set({
+      timeframeSeconds: seconds,
+      activeBets: [],
+    });
   },
 
   /**
@@ -189,6 +235,7 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
       set({ isPlacingBet: true, error: null });
 
       // Call API endpoint to place bet from house balance
+      const { timeframeSeconds } = get();
       const response = await fetch('/api/balance/bet', {
         method: 'POST',
         headers: {
@@ -202,10 +249,10 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
           isOver: direction === 'UP',
           multiplier: multiplier,
           targetCell: {
-            id: 9, // Always use 9 for dynamic grid bets
+            id: 9,
             priceChange: target.priceChange,
             direction: direction,
-            timeframe: 30,
+            timeframe: timeframeSeconds,
           },
         }),
       });
@@ -342,7 +389,49 @@ export const createGameSlice: StateCreator<GameState> = (set, get) => ({
    */
   clearError: () => {
     set({ error: null });
-  }
+  },
+
+  enableBlitzAccess: () => {
+    set({ hasBlitzAccess: true });
+  },
+
+  revokeBlitzAccess: () => {
+    set({ hasBlitzAccess: false });
+  },
+
+  updateBlitzTimer: () => {
+    const { isBlitzActive, blitzEndTime, nextBlitzTime } = get();
+    const now = Date.now();
+    const BLITZ_DURATION = 60 * 1000;
+    const BLITZ_INTERVAL = 2 * 60 * 1000;
+
+    if (isBlitzActive) {
+      if (blitzEndTime && now >= blitzEndTime) {
+        const newNextTime = now + BLITZ_INTERVAL;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('overflow_blitz_next', newNextTime.toString());
+        }
+        set({
+          isBlitzActive: false,
+          blitzEndTime: null,
+          nextBlitzTime: newNextTime,
+          hasBlitzAccess: false,
+        });
+      }
+    } else {
+      if (now >= nextBlitzTime) {
+        const newNextTime = now + BLITZ_INTERVAL + BLITZ_DURATION;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('overflow_blitz_next', newNextTime.toString());
+        }
+        set({
+          isBlitzActive: true,
+          blitzEndTime: now + BLITZ_DURATION,
+          nextBlitzTime: newNextTime,
+        });
+      }
+    }
+  },
 });
 
 /**

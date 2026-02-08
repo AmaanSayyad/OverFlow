@@ -232,11 +232,16 @@ export const DepositModal: React.FC<DepositModalProps> = ({
         {/* Wallet Balance Display */}
         <div className="bg-gradient-to-br from-neon-blue/10 to-purple-500/10 border border-neon-blue/30 rounded-lg p-2.5">
           <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-0.5 font-mono">
-            Wallet Balance
+            Wallet Balance (Sui {(process.env.NEXT_PUBLIC_SUI_NETWORK || 'testnet').toLowerCase()})
           </p>
-          <p className="text-neon-blue text-base font-bold font-mono">
-            {usdcBalance.toFixed(4)} USDC
+          <p className="text-neon-blue text-base font-bold font-mono flex items-center gap-1.5">
+            {usdcBalance.toFixed(4)} <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-4 h-4 object-contain" /> USDC
           </p>
+          {usdcBalance === 0 && (
+            <p className="text-amber-500/90 text-[10px] mt-1 font-mono">
+              Showing 0? Switch your wallet to Sui {(process.env.NEXT_PUBLIC_SUI_NETWORK || 'testnet').toLowerCase()} and use native USDC on that network.
+            </p>
+          )}
         </div>
         
         {/* Amount Input */}
@@ -257,8 +262,8 @@ export const DepositModal: React.FC<DepositModalProps> = ({
                 ${error ? 'border-red-500' : 'border-neon-blue/30'}
               `}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
-              USDC
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-400 text-xs font-mono">
+              <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-3.5 h-3.5 object-contain" /> USDC
             </span>
           </div>
           

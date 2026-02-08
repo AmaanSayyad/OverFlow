@@ -216,8 +216,8 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
           <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-0.5 font-mono">
             House Balance
           </p>
-          <p className="text-neon-blue text-base font-bold font-mono">
-            {houseBalance.toFixed(4)} USDC
+          <p className="text-neon-blue text-base font-bold font-mono flex items-center gap-1.5">
+            {houseBalance.toFixed(4)} <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-4 h-4 object-contain" /> USDC
           </p>
         </div>
         
@@ -239,8 +239,8 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
                 ${error ? 'border-red-500' : 'border-neon-blue/30'}
               `}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
-              USDC
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-400 text-xs font-mono">
+              <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-3.5 h-3.5 object-contain" /> USDC
             </span>
           </div>
           

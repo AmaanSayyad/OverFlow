@@ -56,8 +56,14 @@ export const WalletInfo: React.FC = () => {
 
         <div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wider font-mono">USDC Balance</p>
-          <p className="text-neon-blue font-bold text-lg font-mono text-shadow-neon">
-            {isLoadingBalance ? 'Loading...' : `${formatBalance(usdcBalance)} USDC`}
+          <p className="text-neon-blue font-bold text-lg font-mono text-shadow-neon flex items-center gap-1.5">
+            {isLoadingBalance ? 'Loading...' : (
+              <>
+                {formatBalance(usdcBalance)}
+                <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-5 h-5 object-contain" />
+                USDC
+              </>
+            )}
           </p>
         </div>
       </div>

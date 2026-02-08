@@ -86,13 +86,15 @@ export const BetControls: React.FC<BetControlsProps> = ({
         {isConnected && (
           <div className="bg-gray-900 rounded p-3">
             <p className="text-gray-400 text-xs uppercase tracking-wider">House Balance</p>
-            <p className="text-white text-lg font-bold">{houseBalance.toFixed(2)} USDC</p>
+            <p className="text-white text-lg font-bold flex items-center gap-1.5">
+              {houseBalance.toFixed(2)} <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-5 h-5 object-contain" /> USDC
+            </p>
           </div>
         )}
 
         {/* Bet Amount Input */}
         <div>
-          <label className="block text-gray-400 text-sm mb-2 font-mono uppercase tracking-wider">Bet Amount (USDC)</label>
+          <label className="block text-gray-400 text-sm mb-2 font-mono uppercase tracking-wider flex items-center gap-1.5">Bet Amount <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-4 h-4 object-contain" /> USDC</label>
           <input
             type="number"
             value={betAmount}
@@ -134,7 +136,9 @@ export const BetControls: React.FC<BetControlsProps> = ({
         {selectedTarget && betAmount && parseFloat(betAmount) > 0 && (
           <div className="bg-neon-blue/10 border border-neon-blue/50 rounded p-3 shadow-[0_0_15px_rgba(0,240,255,0.1)]">
             <p className="text-neon-blue text-xs uppercase tracking-wider mb-1 font-mono">Potential Win</p>
-            <p className="text-neon-blue text-2xl font-bold font-mono text-shadow-neon">{potentialPayout} USDC</p>
+            <p className="text-neon-blue text-2xl font-bold font-mono text-shadow-neon flex items-center gap-1.5">
+              {potentialPayout} <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-6 h-6 object-contain" /> USDC
+            </p>
           </div>
         )}
 

@@ -61,10 +61,10 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
         </div>
         
         <div className="text-right">
-          <p className="text-white font-bold">{bet.amount} USDC</p>
+          <p className="text-white font-bold flex items-center gap-1">{bet.amount} <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-4 h-4 object-contain" /> USDC</p>
           {isSettled && (
-            <p className={`text-sm font-semibold ${bet.won ? 'text-green-400' : 'text-red-400'}`}>
-              {bet.won ? `+${bet.payout}` : `-${bet.amount}`} USDC
+            <p className={`text-sm font-semibold flex items-center gap-1 ${bet.won ? 'text-green-400' : 'text-red-400'}`}>
+              {bet.won ? `+${bet.payout}` : `-${bet.amount}`} <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-3.5 h-3.5 object-contain" /> USDC
             </p>
           )}
           {isActive && (
@@ -123,10 +123,13 @@ export const BetCard: React.FC<BetCardProps> = ({ bet, isExpanded, onToggle }) =
               mt-3 p-2 rounded text-center font-semibold
               ${bet.won ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}
             `}>
-              {bet.won 
-                ? `Won ${bet.payout} USDC (${((parseFloat(bet.payout) / parseFloat(bet.amount) - 1) * 100).toFixed(0)}% profit)`
-                : `Lost ${bet.amount} USDC`
-              }
+              <span className="flex items-center justify-center gap-1.5">
+                <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-4 h-4 object-contain" />
+                {bet.won 
+                  ? `Won ${bet.payout} USDC (${((parseFloat(bet.payout) / parseFloat(bet.amount) - 1) * 100).toFixed(0)}% profit)`
+                  : `Lost ${bet.amount} USDC`
+                }
+              </span>
             </div>
           )}
         </div>

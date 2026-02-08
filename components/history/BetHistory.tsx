@@ -76,8 +76,8 @@ export const BetHistory: React.FC = () => {
             
             <div className="bg-gray-900 rounded p-3">
               <p className="text-gray-400 text-xs uppercase tracking-wider">Net P/L</p>
-              <p className={`text-lg font-bold ${stats.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {stats.netProfit >= 0 ? '+' : ''}{stats.netProfit.toFixed(2)} USDC
+              <p className={`text-lg font-bold flex items-center gap-1.5 ${stats.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {stats.netProfit >= 0 ? '+' : ''}{stats.netProfit.toFixed(2)} <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-5 h-5 object-contain" /> USDC
               </p>
             </div>
           </div>

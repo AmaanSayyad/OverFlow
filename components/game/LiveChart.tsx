@@ -4,6 +4,7 @@ import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react'
 import * as d3Shape from 'd3-shape';
 import { useStore } from '@/lib/store';
 import { AssetType } from '@/lib/utils/priceFeed';
+import { TIMEFRAME_OPTIONS } from '@/types/game';
 
 interface LiveChartProps {
   betAmount: string;
@@ -31,6 +32,11 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
   const currentPrice = useStore((state) => state.currentPrice);
   const selectedAsset = useStore((state) => state.selectedAsset);
   const setSelectedAsset = useStore((state) => state.setSelectedAsset);
+  const timeframeSeconds = useStore((state) => state.timeframeSeconds);
+  const setTimeframeSeconds = useStore((state) => state.setTimeframeSeconds);
+  const isBlitzActive = useStore((state) => state.isBlitzActive);
+  const hasBlitzAccess = useStore((state) => state.hasBlitzAccess);
+  const blitzMultiplier = useStore((state) => state.blitzMultiplier);
   const placeBetFromHouseBalance = useStore((state) => state.placeBetFromHouseBalance);
   const activeBets = useStore((state) => state.activeBets);
   const resolveBet = useStore((state) => state.resolveBet);
@@ -134,11 +140,11 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
     return () => clearTimeout(timer);
   }, [betResults, now]);
 
-  // Asset display configuration
+  // Asset display configuration (logos from /public)
   const assetConfig = {
-    BTC: { name: 'Bitcoin', symbol: 'BTC', pair: 'BTC/USD', decimals: 2 },
-    SUI: { name: 'Sui', symbol: 'SUI', pair: 'SUI/USD', decimals: 4 },
-    SOL: { name: 'Solana', symbol: 'SOL', pair: 'SOL/USD', decimals: 2 }
+    BTC: { name: 'Bitcoin', symbol: 'BTC', pair: 'BTC/USD', decimals: 2, logo: '/btc-logo.png' },
+    SUI: { name: 'Sui', symbol: 'SUI', pair: 'SUI/USD', decimals: 4, logo: '/sui-logo.png' },
+    SOL: { name: 'Solana', symbol: 'SOL', pair: 'SOL/USD', decimals: 2, logo: '/solana-sol-logo.png' }
   };
 
   const currentAssetConfig = assetConfig[selectedAsset];
@@ -151,14 +157,14 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
     yDomain.current = { min: 0, max: 100, initialized: false };
   }, [selectedAsset]);
 
-  // Reset Y-axis when asset changes
+  // Reset Y-axis and grid state when asset or timeframe changes
   useEffect(() => {
     yDomain.current = { min: 0, max: 100, initialized: false };
-    setResolvedCells([]); // Clear resolved cells
-    setBetResults([]); // Clear bet results
-    setCellBets(new Map()); // Clear cell bets
-    setIsLoadingPrice(true); // Show loading when switching assets
-  }, [selectedAsset]);
+    setResolvedCells([]);
+    setBetResults([]);
+    setCellBets(new Map());
+    setIsLoadingPrice(true);
+  }, [selectedAsset, timeframeSeconds]);
 
   // Hide loading when price data arrives
   useEffect(() => {
@@ -207,12 +213,14 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
     return () => cancelAnimationFrame(frameId);
   }, []);
 
-  // Configuration - Responsive
+  // Configuration - Responsive + Timeframe
   const isMobile = dimensions.width < 640;
-  const historyWidthRatio = isMobile ? 0.35 : 0.50; // More grid space on mobile
-  const pixelsPerSecond = isMobile ? 40 : 50;
-  const gridInterval = isMobile ? 3000 : 2500; // Fewer cells on mobile
-  const numRows = 10; // Same on mobile and desktop
+  const historyWidthRatio = isMobile ? 0.35 : 0.50;
+  const targetColWidthPx = 250;
+  const gridInterval = timeframeSeconds * 1000; // ms per column
+  const pixelsPerSecond = Math.max(2, targetColWidthPx / timeframeSeconds);
+  // SUI and SOL have lower volatility: use more rows (finer blocks) so small moves are visible
+  const numRows = selectedAsset === 'BTC' ? 10 : 14;
 
   // Scales
   const scales = useMemo(() => {
@@ -221,24 +229,48 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
     // Use FIRST price in history as stable reference
     const referencePrice = priceHistory.length > 0 ? priceHistory[0].price : currentPrice;
 
-    // Asset-specific range percentages (higher for more volatile assets)
-    const rangePercentages = {
-      BTC: 0.005,  // 0.5% - Bitcoin is less volatile
-      SUI: 0.015,  // 1.5% - Sui is moderately volatile
-      SOL: 0.015   // 1.5% - Solana is moderately volatile
+    // Tighter range for SUI/SOL (lower volatility) so the chart zooms in and small moves are visible
+    const rangePercentages: Record<AssetType, number> = {
+      BTC: 0.005,   // 0.5%
+      SUI: 0.0025,  // 0.25% - zoom in for less volatile asset
+      SOL: 0.0025,  // 0.25% - zoom in for less volatile asset
     };
-    
-    const rangePercent = rangePercentages[selectedAsset];
+    const b = rangePercentages[selectedAsset];
+    const timeframeFactor =
+      timeframeSeconds <= 5 ? 0.2 :
+      timeframeSeconds <= 15 ? 0.55 :
+      timeframeSeconds <= 30 ? 1 :
+      timeframeSeconds <= 60 ? 1.4 :
+      timeframeSeconds <= 180 ? 1.6 : 1.8;
+    const rangePercent = b * timeframeFactor;
     const targetMin = referencePrice * (1 - rangePercent);
     const targetMax = referencePrice * (1 + rangePercent);
 
-    // FIXED Y-axis - only initialize once
+    // Initialize Y-axis once, then pan when price goes out of bounds so the line stays visible
     if (!yDomain.current.initialized) {
       yDomain.current = { min: targetMin, max: targetMax, initialized: true };
     }
-    // No lerp/update - axis stays fixed
 
-    const { min: minY, max: maxY } = yDomain.current;
+    let { min: minY, max: maxY } = yDomain.current;
+    const range = maxY - minY;
+    const padding = range * 0.05; // 5% padding so line isn't on the edge
+
+    // Keep green line in view: when price goes out of bounds, pan/expand the domain
+    if (currentPrice > maxY - padding) {
+      const half = range / 2;
+      const newMin = currentPrice - half;
+      const newMax = currentPrice + half;
+      yDomain.current = { min: newMin, max: newMax, initialized: true };
+      minY = newMin;
+      maxY = newMax;
+    } else if (currentPrice < minY + padding) {
+      const half = range / 2;
+      const newMin = currentPrice - half;
+      const newMax = currentPrice + half;
+      yDomain.current = { min: newMin, max: newMax, initialized: true };
+      minY = newMin;
+      maxY = newMax;
+    }
 
     const yScale = (price: number) => {
       return dimensions.height - ((price - minY) / (maxY - minY)) * dimensions.height;
@@ -253,7 +285,24 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
     };
 
     return { yScale, xScale, tipX, minY, maxY };
-  }, [dimensions, priceHistory, currentPrice, now, selectedAsset]);
+  }, [dimensions, priceHistory, currentPrice, now, selectedAsset, timeframeSeconds]);
+
+  // Price scale ticks for right-side axis (TradingView-style)
+  const priceScaleTicks = useMemo(() => {
+    if (!scales || dimensions.height === 0) return [];
+    const { minY, maxY, yScale } = scales;
+    const numTicks = 10;
+    const step = (maxY - minY) / (numTicks - 1);
+    const ticks: { price: number; y: number }[] = [];
+    for (let i = 0; i < numTicks; i++) {
+      const price = minY + i * step;
+      const y = yScale(price);
+      if (y >= -20 && y <= dimensions.height + 20) {
+        ticks.push({ price, y });
+      }
+    }
+    return ticks;
+  }, [scales, dimensions.height]);
 
   // Chart Path
   const chartPath = useMemo(() => {
@@ -282,7 +331,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
       .curve(d3Shape.curveMonotoneX);
 
     return lineGenerator(pointsToRender) || '';
-  }, [scales, priceHistory, currentPrice, now]);
+  }, [scales, priceHistory, currentPrice, now, timeframeSeconds]);
 
   // Continuous Grid Generation
   // Cells are now positioned based on PRICE LEVELS, not fixed pixels
@@ -370,18 +419,30 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
 
         // Small time bonus for cells further in time
         const timeBonus = Math.max(0, (colX - scales.tipX) / 500) * 0.15;
-        const multiplier = Math.min(baseMultiplier + timeBonus, 5.0).toFixed(2);
+        let calculatedMultiplier = Math.min(baseMultiplier + timeBonus, 5.0);
 
-        // Purple gradient color based on distance from current price
-        // Close to price = higher opacity, far from price = lower opacity
+        // Apply Blitz Round 2x multiplier if active and user has access (like Stellarnomo)
+        // Boost higher-risk cells (>1.8x) or "lucky diagonal" pattern
+        const isHighStake = baseMultiplier > 1.8;
+        const isLuckyDiagonal = (row + col) % 3 === 0;
+        const isBlitzBoosted = isBlitzActive && hasBlitzAccess && (isHighStake || isLuckyDiagonal);
+
+        if (isBlitzBoosted) {
+          calculatedMultiplier = calculatedMultiplier * blitzMultiplier;
+        }
+        const multiplier = Math.min(calculatedMultiplier, 10).toFixed(2);
+
+        // Purple gradient, or orange when Blitz-boosted
         const colorPriceDist = Math.abs(rowPriceCenter - currentPrice) / priceRange;
-        const intensity = Math.min(colorPriceDist * 2, 1); // 0 to 1
-        const hue = 270; // Purple hue
-        const saturation = 50 + intensity * 30; // 50-80%
-        const lightness = 45; // Fixed lightness
-        const alpha = 0.4 - intensity * 0.3; // 0.4-0.1 (reduced opacity)
+        const intensity = Math.min(colorPriceDist * 2, 1);
+        const hue = isBlitzBoosted ? 25 : 270;
+        const saturation = isBlitzBoosted ? 80 + intensity * 15 : 50 + intensity * 30;
+        const lightness = isBlitzBoosted ? 55 : 45;
+        const alpha = isBlitzBoosted ? 0.5 - intensity * 0.2 : 0.4 - intensity * 0.3;
         const cellColor = `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
-        const borderColor = `hsla(${hue}, 70%, 55%, ${0.5 - intensity * 0.3})`;
+        const borderColor = isBlitzBoosted
+          ? `hsla(${hue}, 90%, 60%, ${0.7 - intensity * 0.3})`
+          : `hsla(${hue}, 70%, 55%, ${0.5 - intensity * 0.3})`;
 
         cells.push({
           id: `cell-${colTimestamp}-${row}`,
@@ -395,13 +456,14 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
           color: cellColor,
           borderColor: borderColor,
           priceTop: rowPriceTop,
-          priceBottom: rowPriceBottom
+          priceBottom: rowPriceBottom,
+          isBlitzBoosted: isBlitzBoosted
         });
       }
     }
 
     return cells;
-  }, [scales, now, currentPrice, dimensions]);
+  }, [scales, now, currentPrice, dimensions, timeframeSeconds, selectedAsset, isBlitzActive, hasBlitzAccess, blitzMultiplier]);
 
   // Handle bet resolution when chart crosses cells with active bets
   useEffect(() => {
@@ -555,9 +617,14 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
                     boxShadow: '0 0 20px #a855f7'
                   }}
                 >
-                  <span className="text-[10px] font-mono font-bold text-white">
-                    x{cell.multiplier}
-                  </span>
+                  <div className="flex flex-col items-center">
+                    <span className={`text-[10px] font-mono font-bold ${cell.isBlitzBoosted ? 'text-orange-100 drop-shadow-[0_0_5px_rgba(255,165,0,0.8)]' : 'text-white'}`}>
+                      x{cell.multiplier}
+                    </span>
+                    {cell.isBlitzBoosted && (
+                      <span className="text-[7px] font-bold text-orange-400 -mt-1 uppercase tracking-tighter">Blitz</span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -646,9 +713,14 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
                 opacity
               }}
             >
-              <span className="text-[10px] font-mono font-bold text-white/80">
-                x{cell.multiplier}
-              </span>
+              <div className="flex flex-col items-center">
+                <span className={`text-[10px] font-mono font-bold ${cell.isBlitzBoosted ? 'text-orange-100 drop-shadow-[0_0_5px_rgba(255,165,0,0.8)]' : 'text-white/80'}`}>
+                  x{cell.multiplier}
+                </span>
+                {cell.isBlitzBoosted && (
+                  <span className="text-[7px] font-bold text-orange-400 -mt-1 uppercase tracking-tighter">Blitz</span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -703,34 +775,99 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
         )}
       </svg>
 
+      {/* Right-side price scale (TradingView-style) */}
+      {scales && currentPrice > 0 && priceScaleTicks.length > 0 && (
+        <div
+          className="absolute right-0 top-0 bottom-0 w-[72px] sm:w-[80px] z-20 pointer-events-none flex flex-col"
+          style={{ background: 'linear-gradient(to left, rgba(2,4,10,0.92) 0%, rgba(2,4,10,0.6) 70%, transparent 100%)' }}
+        >
+          {priceScaleTicks.map(({ price, y }) => (
+            <div
+              key={price}
+              className="absolute right-1 sm:right-2 flex items-center justify-end gap-1"
+              style={{
+                top: y - 10,
+                height: 20,
+              }}
+            >
+              <span
+                className={`text-[10px] sm:text-xs font-mono font-semibold tabular-nums ${
+                  Math.abs(price - currentPrice) < (scales.maxY - scales.minY) * 0.02
+                    ? 'text-[#00FF9D]'
+                    : 'text-gray-400'
+                }`}
+              >
+                ${price.toLocaleString('en-US', {
+                  minimumFractionDigits: currentAssetConfig.decimals,
+                  maximumFractionDigits: currentAssetConfig.decimals,
+                })}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Price Header with Asset Selector - Mobile Responsive */}
       <div className="absolute top-12 sm:top-20 left-3 sm:left-6 z-30 pointer-events-auto">
         {/* Asset Selector */}
         <div className="flex gap-1 mb-2">
-          {(['BTC', 'SUI', 'SOL'] as AssetType[]).map((asset) => (
+          {(['BTC', 'SUI', 'SOL'] as AssetType[]).map((asset) => {
+            const config = assetConfig[asset];
+            return (
+              <button
+                key={asset}
+                onClick={() => {
+                  if (selectedAsset !== asset) {
+                    console.log(`Switching from ${selectedAsset} to ${asset}`);
+                    setSelectedAsset(asset);
+                  }
+                }}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all duration-200
+                  ${selectedAsset === asset
+                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50 scale-105'
+                    : 'bg-gray-800/80 text-gray-400 hover:bg-gray-700/80 hover:text-white'
+                  }
+                `}
+              >
+                {config.logo ? (
+                  <img src={config.logo} alt={config.symbol} className="w-4 h-4 sm:w-5 sm:h-5 object-contain shrink-0" />
+                ) : null}
+                {asset}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Timeframe Selector: 5s, 15s, 30s, 1m, 3m, 5m */}
+        <div className="flex gap-1 mb-2 flex-wrap">
+          {TIMEFRAME_OPTIONS.map(({ value, label }) => (
             <button
-              key={asset}
+              key={value}
               onClick={() => {
-                if (selectedAsset !== asset) {
-                  console.log(`Switching from ${selectedAsset} to ${asset}`);
-                  setSelectedAsset(asset);
+                if (timeframeSeconds !== value) {
+                  setTimeframeSeconds(value);
                 }
               }}
               className={`
-                px-3 py-1.5 text-xs font-mono font-bold rounded-lg transition-all duration-200
-                ${selectedAsset === asset
-                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50 scale-105'
-                  : 'bg-gray-800/80 text-gray-400 hover:bg-gray-700/80 hover:text-white'
+                px-2.5 py-1 text-[10px] sm:text-xs font-mono font-semibold rounded-lg transition-all duration-200
+                ${timeframeSeconds === value
+                  ? 'bg-cyan-500/90 text-white shadow-lg shadow-cyan-500/30 scale-105'
+                  : 'bg-gray-800/80 text-gray-400 hover:bg-gray-700/80 hover:text-cyan-300'
                 }
               `}
             >
-              {asset}
+              {label}
             </button>
           ))}
         </div>
 
         {/* Price Display */}
-        <div className="pointer-events-none">
+        <div className="pointer-events-none flex items-center gap-2">
+          {currentAssetConfig.logo ? (
+            <img src={currentAssetConfig.logo} alt={currentAssetConfig.symbol} className="w-6 h-6 sm:w-8 sm:h-8 object-contain" />
+          ) : null}
+          <div>
           <h2 className="text-gray-500 text-[10px] sm:text-xs tracking-widest font-mono mb-0.5 sm:mb-1">
             {currentAssetConfig.pair}
           </h2>
@@ -743,6 +880,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
           <span className="inline-block mt-1 px-1.5 py-0.5 bg-purple-500/20 border border-purple-400/30 rounded text-[8px] sm:text-[9px] text-purple-300 font-medium">
             PYTH
           </span>
+          </div>
         </div>
       </div>
 
@@ -809,7 +947,10 @@ export const LiveChart: React.FC<LiveChartProps> = ({ betAmount, setBetAmount })
                         ? `+${result.payout.toFixed(2)}`
                         : `-${result.amount.toFixed(2)}`
                       }
-                      <span className="text-xs ml-1 opacity-70">USDC</span>
+                      <span className="flex items-center gap-1 text-xs ml-1 opacity-70">
+                        <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-3.5 h-3.5 object-contain" />
+                        USDC
+                      </span>
                     </p>
                   </div>
 

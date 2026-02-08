@@ -141,7 +141,10 @@ export const BalanceDisplay: React.FC = () => {
                 <p className="text-neon-blue text-xl font-bold font-mono text-shadow-neon">
                   {formattedBalance}
                 </p>
-                <span className="text-neon-blue/70 text-sm font-mono">USDC</span>
+                <span className="flex items-center gap-1.5 text-neon-blue/70 text-sm font-mono">
+                  <img src="/usd-coin-usdc-logo.png" alt="USDC" className="w-4 h-4 object-contain" />
+                  USDC
+                </span>
               </div>
             )}
           </div>

@@ -4,6 +4,18 @@
 
 export type Direction = 'UP' | 'DOWN';
 
+/** Supported round timeframes in seconds (cell duration) */
+export type TimeframeSeconds = 5 | 15 | 30 | 60 | 180 | 300;
+
+export const TIMEFRAME_OPTIONS: { value: TimeframeSeconds; label: string }[] = [
+  { value: 5, label: '5s' },
+  { value: 15, label: '15s' },
+  { value: 30, label: '30s' },
+  { value: 60, label: '1m' },
+  { value: 180, label: '3m' },
+  { value: 300, label: '5m' },
+];
+
 export interface TargetCell {
   id: string;
   label: string;          // e.g., "+$10 in 30s"
