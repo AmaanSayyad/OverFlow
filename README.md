@@ -942,6 +942,22 @@ graph LR
 | GET    | `/api/ai/predict`         | x402 AI insight (payment required) |
 | GET    | `/api/blitz/enter`        | x402 Blitz entry |
 
+## Competitive Landscape
+
+Comparison with other binary / price-prediction dApps (approximate; check each product for current details).
+
+| Platform | Chain | Asset | Timeframes | Mechanic | Oracle | House balance / custody |
+|----------|-------|-------|------------|----------|--------|-------------------------|
+| **Overflow** | **Sui** | **USDC** | **5s–5m (incl. 3m)** | **Grid cells, price crosses level** | **Pyth Hermes** | **Move treasury + off-chain house balance** |
+| Stellarnomo | Stellar | XLM | 5s–5m (incl. 3m) | Grid cells, price crosses level | Pyth Hermes | Treasury account + off-chain house balance |
+| Polymarket (crypto) | Polygon | USDC, shares | Hourly+ | Event yes/no, 1h candle | Binance | AMM / order book |
+| Injective (binary) | Injective | USDT | Varies | Binary outcome $0–$1 | Chain oracles | Exchange module |
+| PancakeSwap Prediction | BNB Chain | BNB, CAKE | 5 min | Bull/Bear round, pool payout | Chainlink | Pool, 3% fee |
+| Buffer Finance | Arbitrum / Hyperliquid | USDC, ARB | 1 min+ | Up/Down, Above/Below | Pyth | ERC-721 positions |
+| Supa.Market | BNB Chain | BNB | 60 sec | Up/Down PvP | Binance API | No house edge claim |
+
+**Overflow differentiators:** Sui-native (USDC, Move treasury, dapp-kit); short timeframes (5s–5m, incl. 3m); grid + multiplier; Pyth attestations for resolution; x402 for AI insight and Blitz entry; Move shared object + event-driven sync for on-chain custody and off-chain speed.
+
 ## Security Considerations
 
 ### Smart Contract Security
