@@ -1,34 +1,130 @@
-# Overflow - BTC Price Prediction Game
+# Overflow
 
-Overflow is a decentralized real-time BTC price prediction game built on **Sui**. Real-time prediction needs both strong security (for deposits and withdrawals) and low latency (for rounds and UX)—requirements that many chains struggle to meet. Sui’s performance, security, and composability make it a strong fit. Overflow delivers a DeFi experience built for real-world scale: fast, secure prediction rounds with a hybrid architecture that keeps funds on-chain while keeping the game responsive.
+**Real-time binary options / price prediction dApp on Sui**
 
-Users deposit USDC to their house balance and place bets on Bitcoin price movements within 30-second rounds. The system uses on-chain treasury management (Move smart contracts) with off-chain game logic to maximize security where it matters (deposits/withdrawals) and performance where it counts (instant bets and settlements). The result is a working prototype that demonstrates a clear use case for Sui: real-time, composable DeFi with a focus on user experience and technical execution.
+**Powered by** Sui Move + Object-centric model + Pyth Hermes price attestations + Off-chain state (Supabase) + x402-style payments  
+
+**Simply means:** *Trade binary options with oracle-bound resolution and on-chain custody.*
+
+| Link | URL |
+|------|-----|
+| **GitHub** | [OverFlow](https://github.com/AmaanSayyad/OverFlow) |
+
+---
+
+## Problem
+
+Real-time prediction and binary options in Web3 need **strong security** (deposits/withdrawals) and **low latency** (rounds, UX). Many chains struggle with both. Users want instant bets without signing every trade; they also want funds secured on-chain.
+
+## Solution — Overflow
+
+- **Native USDC on Sui** — Deposit once to house balance; place many bets without per-bet gas or wallet prompts.
+- **Trade at 5s, 15s, 30s, 1m, 3m, 5m** — Multiple timeframes; grid cells with multipliers; win when the price line crosses your cell.
+- **Pyth Hermes** — Real-time BTC/SUI/SOL prices for fair, instant resolution.
+- **On-chain treasury (Move)** — Deposits and withdrawals secured by a shared treasury contract; events drive off-chain balance sync.
+- **Blitz rounds** — Time-limited 2× multiplier rounds (optional x402 entry).
+- **AI insights** — Optional paid predictions via x402 micropayment flow.
+- **Settlement** — Off-chain state (Supabase) for speed; on-chain custody for security.
+
+## How it works (5 steps)
+
+1. **User lands** → Connects Sui wallet and deposits **USDC** to the treasury (house balance).
+2. **Clicks Bet** → Selects amount, timeframe, and taps **cells** (multipliers) on the chart.
+3. **Win condition** → If the **price line crosses the cell** of the chosen multiplier during the round, it is a **win**.
+4. **Balance update** → Wins and losses update the user's house balance (off-chain).
+5. **Withdrawal** → User withdraws USDC from the treasury back to their wallet (on-chain).
+
+---
+
+## Built on Sui
+
+- **Native USDC** for deposits, bets, and withdrawals (Sui testnet/mainnet USDC type)
+- **Sui RPC** for balance checks, transaction building, and event indexing
+- **dapp-kit** for wallet connect (Sui Wallet, Suiet, Ethos, and more)
+- **Move treasury contract** — Shared object with `deposit` / `withdraw`; emits events for sync
+- **x402-style payments** for optional paid features (AI insights, Blitz entry)
+- **Testnet-first** with a path to mainnet
+
+### Treasury / contract address
+
+| Network  | Treasury package | Treasury object | Explorer |
+|----------|------------------|-----------------|----------|
+| **Testnet** | `0xbd4e8f5d340223fc9907b5cf1f5cc0a739c888f8e71aa299adc6b1f0404ba016` | `0x230234815eb4ad1cb8ea1efe80515c5e0c825c6c98b618156ae8502bba12bc1c` | [Sui Explorer (testnet)](https://suiexplorer.com/object/0x230234815eb4ad1cb8ea1efe80515c5e0c825c6c98b618156ae8502bba12bc1c?network=testnet) |
+
+**USDC type (testnet):** `0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC`  
+
+Set `NEXT_PUBLIC_TREASURY_PACKAGE_ID`, `NEXT_PUBLIC_TREASURY_OBJECT_ID`, and `NEXT_PUBLIC_USDC_TYPE` in `.env` (see [Environment Variables](#environment-variables)).
+
+---
 
 ## Core Features
 
-- **Real-time BTC price prediction** — 30-second rounds with live price feed and countdown
-- **USDC-based betting on Sui** — Deposits and withdrawals secured by Move smart contracts; bets use house balance for instant placement
-- **On-chain treasury** — Secure deposit/withdrawal with event-driven balance sync and full audit trail
-- **Off-chain game layer** — Fast bet placement and settlement without per-bet gas or wallet prompts
-- **Live price chart** — Historical data and round-by-round visualization
-- **Multiple betting targets** — Configurable multipliers and clear payoff structure
-- **Audit logging** — Every balance change logged for transparency and reconciliation
-- **Event-driven architecture** — Blockchain events drive balance updates for correctness and composability
+- **Real-time price chart** — Live BTC/USD, SUI/USD, SOL/USD from Pyth with TradingView-style price scale
+- **USDC house balance** — Deposit once, bet many times without signing every bet
+- **Multiple timeframes** — 5s, 15s, 30s, 1m, 3m, 5m cell durations
+- **Grid betting** — Click price-level cells; win when the line crosses your cell (multipliers up to 10×)
+- **Blitz rounds** — Time-limited 2× multiplier rounds (optional x402 entry)
+- **AI insights** — Optional paid predictions via x402 micropayment flow
+- **Audit trail** — All balance changes logged in Supabase (`balance_audit_log`)
+- **Treasury operations** — User-signed deposits; contract withdraws to user's wallet
 
-## Why Sui
+---
 
-Overflow is designed to leverage Sui’s strengths as a DeFi foundation:
+## Infra / Tech
 
-- **Security** — Move’s resource model and type system keep treasury logic safe; coins and events are first-class, reducing trust assumptions.
-- **Performance** — Sui’s throughput and low latency support real-time rounds and event processing without slowing down the game.
-- **Composability** — Shared treasury object, standard Coin usage, and event emission make the app composable with other Sui DeFi primitives and future upgrades (e.g. PTBs, order books).
-- **Real-world scale** — The hybrid on-chain/off-chain design shows how to build a responsive, gas-efficient experience that can scale to many users and rounds.
+| Layer | What it is |
+|-------|------------|
+| **Sui** | Object-centric L1; Move for treasury; shared object for deposit/withdraw; events for sync. |
+| **@mysten/sui + dapp-kit** | Sui SDK and wallet connect (Sui Wallet, Suiet, Ethos). |
+| **Pyth Hermes** | Signed price feeds (BTC/SUI/SOL) for chart and bet resolution. |
+| **Off-chain state** | Supabase (PostgreSQL). Balances and bet outcomes; only deposits/withdrawals on-chain. |
+| **x402** | HTTP 402 + Sui payment so users pay to access AI insight or Blitz entry. |
 
-The project includes a **working prototype** with wallet connect, deposit/withdraw, live rounds, and payouts—suitable for demos and further iteration within the Sui ecosystem.
+**Stack:** Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand, d3-shape / Recharts (live chart), TanStack React Query (via dapp-kit).
+
+---
 
 ## System Architecture
 
-The application follows a hybrid architecture combining on-chain treasury operations with off-chain game logic. This design optimizes for security (deposits/withdrawals on-chain) and performance (game logic off-chain).
+Hybrid design: **on-chain** for funds (deposit/withdraw), **off-chain** for game state and bets (Supabase + API).
+
+### Pitch — one-slide architecture
+
+```mermaid
+graph TB
+    User[User + Wallet]
+    App[Overflow App]
+    Pyth[Pyth Oracle]
+    DB[(Supabase)]
+    Sui[(Sui + USDC)]
+
+    User -->|Connect, sign deposit/withdraw| Sui
+    Sui -->|Balance, verify tx, events| App
+    User -->|Place bet on cells| App
+    App -->|Read/write house balance, bets| DB
+    Pyth -->|Price attestations| App
+    App -->|Resolve win/lose, credit payout| DB
+    App -->|User signs withdraw| Sui
+```
+
+**Flow:** User ↔ Sui (deposit/withdraw) · User → App (bet) · Pyth → App (price) · App ↔ DB (state) · App → Sui (withdraw).
+
+### User Flow
+
+```mermaid
+flowchart LR
+    A[Connect wallet] --> B[View house balance]
+    B --> C[Deposit USDC]
+    C --> B
+    B --> D[Place bet on chart]
+    D --> E{Price crosses cell?}
+    E -->|Yes| F[Win: credit to balance]
+    E -->|No| G[Lose: stake deducted]
+    F --> B
+    G --> B
+    B --> H[Withdraw USDC]
+    H --> A
+```
 
 ### High-Level Architecture
 
@@ -289,10 +385,10 @@ Environment variables (see [Environment Variables](#environment-variables)) are 
 
 ## Prerequisites
 
-- Node.js 18+ and npm
-- A Sui wallet (Sui Wallet, Suiet, Ethos, etc.) for testing
-- Sui testnet SUI tokens for gas (get from [Sui Testnet Faucet](https://discord.com/channels/916379725201563759/971488439931392130))
-- Sui testnet USDC tokens for gameplay
+- **Node.js** 18+ and npm
+- **Sui wallet** (Sui Wallet, Suiet, Ethos) — set network to **Testnet**
+- **Testnet SUI** for gas — [Sui Testnet Faucet](https://discord.com/channels/916379725201563759/971488439931392130)
+- **Testnet USDC** for gameplay
 
 ## Getting Started
 
@@ -302,52 +398,48 @@ Environment variables (see [Environment Variables](#environment-variables)) are 
 npm install
 ```
 
-### 2. Set Up Environment Variables
-
-Create your environment file from the template:
+### 2. Environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your values. The template matches the variables used by the app (see [Environment Variables](#environment-variables) for the full list). Required for running the app:
+Configure:
 
-- **Sui:** `NEXT_PUBLIC_SUI_NETWORK`, `NEXT_PUBLIC_SUI_RPC_ENDPOINT`, `NEXT_PUBLIC_TREASURY_PACKAGE_ID`, `NEXT_PUBLIC_TREASURY_OBJECT_ID`, `NEXT_PUBLIC_USDC_TYPE`
-- **Supabase:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUI_NETWORK` | `testnet` or `mainnet` |
+| `NEXT_PUBLIC_SUI_RPC_ENDPOINT` | e.g. `https://fullnode.testnet.sui.io:443` |
+| `NEXT_PUBLIC_TREASURY_PACKAGE_ID` | Treasury package ID (see [Treasury / contract address](#treasury--contract-address)) |
+| `NEXT_PUBLIC_TREASURY_OBJECT_ID` | Treasury shared object ID |
+| `NEXT_PUBLIC_USDC_TYPE` | USDC type on target network (testnet example in contract table) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `NEXT_PUBLIC_APP_NAME` | Optional; default `Overflow` |
+| `NEXT_PUBLIC_ROUND_DURATION` | Optional; default `30` (seconds) |
+| `NEXT_PUBLIC_PRICE_UPDATE_INTERVAL` | Optional; default `1000` (ms) |
+| `NEXT_PUBLIC_CHART_TIME_WINDOW` | Optional; default `300000` (5 min, ms) |
 
-Optional: `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_ROUND_DURATION`, `NEXT_PUBLIC_PRICE_UPDATE_INTERVAL`, `NEXT_PUBLIC_CHART_TIME_WINDOW`.
+### 3. Supabase
 
-### 3. Set Up Supabase Database
+1. Create a project at [supabase.com](https://supabase.com).
+2. Run migrations in order in the SQL Editor: `supabase/migrations/001_*.sql` through `004_*.sql` (or use Supabase CLI: `supabase link` then `supabase db push`).
+3. Put your Supabase URL and anon key in `.env`.
 
-The application uses Supabase for off-chain data storage. You need to:
-
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
-2. Install Supabase CLI: `npm install -g supabase`
-3. Link to your project: `supabase link --project-ref your-project-ref`
-4. Push the database schema: `supabase db push`
-5. Update `.env` with your Supabase URL and anon key
-
-### 4. Start the Development Server
+### 4. Run the app
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-### 5. Connect Your Sui Wallet
+### 5. Connect wallet and get testnet USDC
 
-1. Install a Sui wallet extension (Sui Wallet, Suiet, or Ethos)
-2. Create or import a wallet
-3. Switch to Sui testnet
-4. Get testnet SUI from the [faucet](https://discord.com/channels/916379725201563759/971488439931392130)
-5. Click "Connect Sui Wallet" in the app
-
-### 6. Get Testnet USDC
-
-To play the game, you need testnet USDC tokens. You can:
-- Use the Sui testnet faucet to get test USDC
-- Or contact the project maintainers for testnet USDC
+1. Install a Sui wallet (Sui Wallet, Suiet, or Ethos); switch to **Sui testnet**.
+2. Get testnet SUI from the [faucet](https://discord.com/channels/916379725201563759/971488439931392130).
+3. Get testnet USDC (faucet or project maintainers).
+4. Click **Connect Sui Wallet** in the app.
 
 ## Project Structure
 
@@ -543,6 +635,8 @@ CREATE OR REPLACE FUNCTION reconcile_balance(
 
 ## Smart Contract Architecture
 
+Contract addresses and env vars are in [Treasury / contract address](#treasury--contract-address). To use your own deployment, see [Deploying Your Own Treasury Contract](#deploying-your-own-treasury-contract).
+
 ### Treasury Contract
 
 The treasury contract manages USDC deposits and withdrawals using Sui Move.
@@ -633,6 +727,15 @@ graph LR
 ```
 
 ## Game Mechanics
+
+### Steps
+
+1. **Connect** — Sui dapp-kit; address and house balance load from API.
+2. **Deposit** — User signs a Sui transaction to deposit USDC to the treasury; app sends tx digest to `/api/balance/deposit`; event listener credits house balance.
+3. **Bet** — User selects amount and a price cell (multiplier); `/api/balance/bet` deducts stake from house balance; resolution when price crosses the cell. **Win:** credit stake × multiplier via `/api/balance/win`. **Lose:** stake already deducted.
+4. **Withdraw** — User signs withdraw; treasury contract sends USDC to user; event listener debits house balance.
+
+Timeframes (5s, 15s, 30s, 1m, 3m, 5m) set the duration of each grid column. Blitz rounds offer 2× multipliers with optional paid entry (x402).
 
 ### Round System
 
@@ -725,15 +828,17 @@ The application supports multiple Sui networks. Configure via `NEXT_PUBLIC_SUI_N
 
 ## Environment Variables
 
+These match what the app reads from `.env`; use `.env.example` as a template. For the app’s **testnet deployment**, use the contract addresses in [Treasury / contract address](#treasury--contract-address).
+
 ### Required Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `NEXT_PUBLIC_SUI_NETWORK` | Sui network to connect to | `testnet` |
 | `NEXT_PUBLIC_SUI_RPC_ENDPOINT` | Sui RPC endpoint URL | `https://fullnode.testnet.sui.io:443` |
-| `NEXT_PUBLIC_TREASURY_PACKAGE_ID` | Treasury contract package ID | `0x...` |
-| `NEXT_PUBLIC_TREASURY_OBJECT_ID` | Treasury shared object ID | `0x...` |
-| `NEXT_PUBLIC_USDC_TYPE` | USDC token type on Sui | `0x...::usdc::USDC` |
+| `NEXT_PUBLIC_TREASURY_PACKAGE_ID` | Treasury contract package ID (used for wallet, deposits, AI Insight, Blitz) | See [Treasury / contract address](#treasury--contract-address) |
+| `NEXT_PUBLIC_TREASURY_OBJECT_ID` | Treasury shared object ID | See [Treasury / contract address](#treasury--contract-address) |
+| `NEXT_PUBLIC_USDC_TYPE` | USDC token type on Sui (must match network) | See [Treasury / contract address](#treasury--contract-address) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | `https://xxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key | `eyJ...` |
 
@@ -824,36 +929,18 @@ graph LR
 7. Receive payout (if win)
 8. Withdraw to wallet (optional)
 
-## API Endpoints
+## API Overview
 
-### Balance Management
-
-**GET /api/balance/[address]**
-- Returns current house balance for address
-- Response: `{ balance: number }`
-
-**POST /api/balance/deposit**
-- Records deposit from blockchain event
-- Body: `{ address: string, amount: number, txHash: string }`
-
-**POST /api/balance/withdraw**
-- Records withdrawal from blockchain event
-- Body: `{ address: string, amount: number, txHash: string }`
-
-### Game Operations
-
-**POST /api/balance/bet**
-- Places a bet and deducts from house balance
-- Body: `{ address: string, amount: number, target: number }`
-- Response: `{ betId: string, newBalance: number }`
-
-**POST /api/balance/win**
-- Credits winnings to house balance
-- Body: `{ address: string, amount: number, betId: string }`
-
-**GET /api/balance/events**
-- Event listener endpoint for blockchain events
-- Processes DepositEvent and WithdrawalEvent
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET    | `/api/balance/[address]` | House balance for address |
+| POST   | `/api/balance/deposit`     | Credit after user deposit tx |
+| POST   | `/api/balance/withdraw`    | Debit + treasury withdraw to user |
+| POST   | `/api/balance/bet`         | Deduct balance for a bet |
+| POST   | `/api/balance/win`         | Credit winnings |
+| GET    | `/api/balance/events`      | Event listener (DepositEvent / WithdrawalEvent) |
+| GET    | `/api/ai/predict`         | x402 AI insight (payment required) |
+| GET    | `/api/blitz/enter`        | x402 Blitz entry |
 
 ## Security Considerations
 
