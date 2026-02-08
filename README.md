@@ -8,6 +8,8 @@
 
 | Link | URL |
 |------|-----|
+| **Live app** | [overflow-sui.vercel.app](https://overflow-sui.vercel.app/) |
+| **Pitch deck** | [Google Slides](https://docs.google.com/presentation/d/1CsGdNswj-Cxm7cYSEf6w-IBL-vDho05Xo9qyUOzcjyE/edit?usp=sharing) |
 | **GitHub** | [OverFlow](https://github.com/AmaanSayyad/OverFlow) |
 
 ---
